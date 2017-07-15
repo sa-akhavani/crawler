@@ -1,28 +1,30 @@
 'use strict';
 const request = require('request');
-const kaveNegar = require('kavenegar')
+const kaveNegar = require('kavenegar');
 const run = require('gen-run');
 const fs = require('fs');
+const TeleBot = require('telebot');
+const configs = require('./config.json');
 
-const kaveNegarConfigs = {
-  "api_key": "XXX",
-  "sender_number": "XXX"
-};
-var api = kaveNegar.KavenegarApi({
-  apikey: kaveNegarConfigs.api_key
-});
-
-
-const phoneNumber = '09303211374';
+const phoneNumber = configs.recieverData.phoneNumber;
+const telegramId = configs.recieverData.telegramId;
 const path = 'https://search.digikala.com/api2/Data/Get?categoryId=0&ip=0';
 const path2 = 'https://search.digikala.com/api/SearchApi/?q=shrjd';
 var sent = 0;
+
+// Kavenegar Api Setup
+var api = kaveNegar.KavenegarApi({
+  apikey: configs.kavenegar.api_key
+});
+
+// Telegram Bot Setup
+const bot = new TeleBot(configs.botfather.token);
 
 function sendSms(message, recieverNumber) {
   return function (callback) {
     api.Send({
       message: message,
-      sender: kaveNegarConfigs.sender_number,
+      sender: configs.kavenegar.sender_number,
       receptor: recieverNumber
     }, function (response, status) {
       if (status === 200) {
@@ -36,37 +38,35 @@ function sendSms(message, recieverNumber) {
 }
 
 function fetchDiveSummers() {
-  // return function (callback) {
   run(function* () {
-    for (let i = 1; i < 10; i++) {
-      for (let j = 1; j < 10; j++) {
+    console.log('heartbeat');
+    for (let i = 1; i < 7; i++) {
+      for (let j = 1; j < 7; j++) {
         let response = yield fetchData(path2 + i.toString() + 't' + j.toString());
         if (response) {
-          console.log('i: ' + i + ' j: ' + j);
+          // console.log('i: ' + i + ' j: ' + j);
           for (let z = 0; z < response.hits.hits.length; z++) {
             let product = response.hits.hits[z]
             let enTitle = product._source.EnTitle.toLowerCase();
-            let minPriceList = product._source.MinPriceList
-            if (sent < 2) {
-              if (product._id === 174553) {
-                if (minPriceList != 0) {
-                console.log('174553: ' + minPriceList);
-                yield sendSms('اومد:‌ ' + product._id + ' ال', phoneNumber);
+            let minPriceList = product._source.MinPriceList;
+            if (product._id === 174553) {
+              if (minPriceList != 0) {
+                bot.sendMessage(telegramId, 'https://www.digikala.com/Product/DKP-' + product._id);
+                if (sent < 2) {
+                  yield sendSms('اومد:‌ ' + product._id + ' ال', phoneNumber);
                 }
-              } else if (enTitle.indexOf('sony') > -1 || enTitle.indexOf('playstation') > -1 || enTitle.indexOf('ps4' || enTitle.indexOf('slim') > -1) > -1) {
-                console.log('sony: ' + minPriceList);
+              }
+            } else if (enTitle.indexOf('sony') > -1 || enTitle.indexOf('playstation') > -1 || enTitle.indexOf('ps4' || enTitle.indexOf('slim') > -1) > -1) {
+              bot.sendMessage(telegramId, 'https://www.digikala.com/Product/DKP-' + product._id);
+              if (sent < 2) {
                 yield sendSms('اومد:‌ ' + product._id + ' ال', phoneNumber);
               }
-            } else {
-              console.log('SMS OverFlow');
             }
           };
         }
       }
     }
-    // callback(null);
   });
-  // }
 };
 
 function fetchData(path) {
@@ -86,9 +86,10 @@ function fetchData(path) {
   }
 }
 
+bot.start();
 setInterval(function () {
   fetchDiveSummers();
-}, 10000);
+}, 15000);
 
 // setInterval(function () {
 //   console.log('Fetching Data From Digikala Every One Minutes!');

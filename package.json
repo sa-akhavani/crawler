@@ -11,6 +11,7 @@
   "dependencies": {
     "gen-run": "^0.1.2",
     "kavenegar": "^2.0.1",
-    "request": "^2.81.0"
+    "request": "^2.81.0",
+    "telebot": "^1.2.2"
   }
 }
